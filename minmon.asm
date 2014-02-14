@@ -87,12 +87,12 @@ jumtab:
    .dw badcmd             ; command 'o' 0f
    .dw badcmd             ; command 'p' 10
    .dw badcmd             ; command 'q' 11
-   .dw badcmd             ; command 'r' 12
+   .dw readcmd             ; command 'r' 12
    .dw badcmd             ; command 's' 13
    .dw badcmd             ; command 't' 14
    .dw badcmd             ; command 'u' 15
    .dw badcmd             ; command 'v' 16
-   .dw badcmd             ; command 'w' 17
+   .dw writecmd             ; command 'w' 17
    .dw badcmd             ; command 'x' 18
    .dw badcmd             ; command 'y' 19
    .dw badcmd             ; command 'z' 1a
@@ -161,11 +161,60 @@ gb_err:
    ljmp badpar
 
 ;*****************************************************************
+; Command for 'r'
+; readcmd
+;*****************************************************************
+readcmd:
+   lcall readaddr ; get the address from which to read
+   clr a ; TODO needed @a+dptr?
+   movc a, @a+dptr ; TODO why movc and not mov?
+   lcall prthex
+   ljmp endloop
+
+;*****************************************************************
+; Command for 'w'
+; writecmd
+;*****************************************************************
+writecmd:
+   lcall readaddr ; get the address to which to write
+
+   lcall getchr ; read '=' sign; or it should be at least
+   lcall sndchr ; echo back the command
+   clr C ; clear carry
+   cjne a, #'=', badsyntax ; make sure that the next character is =; otherwise err
+
+   ; write value
+   lcall getbyt ; Get the byte to write
+   lcall prthex
+   movx @dptr, a ; Write the byte
+   ljmp endloop
+
+
+
+;*****************************************************************
+; Reads 4 characters (2 bytes) into the dptr
+; readaddr
+;*****************************************************************
+readaddr:
+   lcall getbyt           ; get address high byte
+   lcall prthex
+   mov dph, a             ; move the address high byte to the high byte of dptr
+   lcall getbyt           ; get address low byte
+   lcall prthex
+   lcall crlf
+   mov dpl, a             ; move the address low byte to the low byte of dptr
+   ret
+
+;*****************************************************************
 ; monitor support routines
 ;*****************************************************************
 badcmd:
    lcall print
    .db 0dh, 0ah," bad command ", 0h
+   ljmp endloop
+badsyntax:
+   lcall print
+   .db 0dh, 0ah," bad syntax for command ", 0h
    ljmp endloop
 badpar:
    lcall print
